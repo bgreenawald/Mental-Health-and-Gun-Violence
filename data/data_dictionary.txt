@@ -1,0 +1,49 @@
+Data Dictionary for the "all.csv" file, which is a consolidation
+of many different datasets that have been normalized,
+and contains the data that I will use for this project.
+
+"Norm" in any column means the normalized version
+of the target column. The norm is computated as
+norm(x) = (x_i - min(x))/(max(x)-min(x))
+
+--------------------------------------------------------------------------------
+* General Data
+-States and State (Ab)
+    The 50 U.S states with abbreviations.
+-Population
+    Population in 2014
+--------------------------------------------------------------------------------
+* Mental Health Data
+    Aggregate data from 2012-2014. For all mental health columns, "rate" is
+is the percentage of the subpopulation with the given condition.
+-TOS
+    Thoughts of Suicide
+    Respondents were asked, "At any time in the past 12 months, did you seriously think about trying to kill yourself?" If they answered "Yes," they were categorized as having serious thoughts of suicide in the past year
+    https://data.world/samhsa/serious-thoughts-of-suicide
+-MDE
+    Major Depressive Episode
+    People with a major depressive episode in the past year, defined as a period of at least 2 weeks when an individual experienced a depressed mood or loss of interest or pleasure in daily activities and had a majority of specified depression symptoms.
+    https://data.world/samhsa/major-depressive-episode
+-AMI
+    Any Mental Illness
+    Defined as any having a diagnosable mental, behavioral, or emotional disorder, other than a developmental or substance use disorder.
+    https://data.world/samhsa/any-mental-illness
+-SMI
+    Serious Mental Illness
+    Similar to AMI, except with functional impairment due to the illness.
+    https://data.world/samhsa/serious-mental-illness
+
+--------------------------------------------------------------------------------
+Firearm Data
+    Contains homicide and suicide deaths by firearm for the year 2014.
+For firearm columns, rate is defined at number of deaths per 100,000.
+Norm is based on the rate column. NOTE: 0 deaths does not mean 0 deaths
+actually occured, but that there were few enough that they could not
+be report without potentially violating individual confidentiality.
+Data queried from the CDC Wonder Database, https://wonder.cdc.gov/
+-F
+    Suicides and Homicides
+-H
+    Homicide
+-S
+    Suicide

@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+    <!-- Author: Ben Greenawald (bhg5yd)
+
+Other sources:
+Basis for US Tile Map
+https://github.com/charliesmart/d3-square-tile-map
+
+Parallel Coordinates with Ordinal Axis
+http://bl.ocks.org/syntagmatic/4020926  -->
+
+    <head>
+        <meta charset="utf-8">
+        <!-- Import D3 -->
+        <script src="http://d3js.org/d3.v3.min.js"></script> 
+
+        <!-- Import D3 Color Palettes -->
+        <script src="https://d3js.org/d3-color.v1.min.js"></script>
+        <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+        <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+        <!-- Import paracoor -->
+        <script src="assets/js/d3.parcoords.js"></script>
+        <link rel="stylesheet" type="text/css" href="assets/css/d3.parcoords.css">
+
+        <!-- Import JQuery -->
+        <script src="assets/js/jquery-3.3.1.min.js"></script>
+        <script src="assets/js/jquery-migrate-1.4.1.min.js"></script>
+
+        <style type="text/css">
+            /* On mouse hover, lighten state color */
+            path:hover {
+                fill-opacity: .7;
+            }
+            /* Style for Custom Tooltip */
+            div.tooltip {   
+
+            }
+
+            /* Legend Font Style */
+            body {
+                font: 13px "Palatino Linotype", "Book Antiqua", Palatino, serif;
+                background-color: #deedff;/*#c6e2ff;*/
+
+            }
+
+
+            svg {
+                font: 10px sans-serif;
+            }
+
+            .background path {
+                fill: none;
+                stroke: #ddd;
+                shape-rendering: crispEdges;
+            }
+
+            .foreground path {
+                fill: none;
+            }
+
+            .brush .extent {
+                fill-opacity: .3;
+                stroke: #fff;
+                shape-rendering: crispEdges;
+            }
+
+            .axis line,
+            .axis path {
+                fill: none;
+                stroke: #000;
+                shape-rendering: crispEdges;
+            }
+
+            .axis text {
+                text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+                font-size: 8px;
+            }
+
+            .axis-label {
+                font-size: 16px;
+                font: 18px "Palatino Linotype", "Book Antiqua", Palatino, serif;  
+            }
+
+            th, td {
+                padding: 0px 15px 5px 5px;
+            }
+
+            .row {
+                display: flex; /* equal height of the children */
+            }
+
+            .col {
+                flex: 1; /* additionally, equal width */
+
+                padding: 1em;
+                border: solid;
+                border-color: darkgrey;
+            }
+
+            #info {                     
+                font: 18px "Palatino Linotype", "Book Antiqua", Palatino, serif;        
+                border 5px;      
+                border-radius: 8px;           
+                pointer-events: none;  
+            }
+
+
+            /* basic positioning */
+            .legend { list-style: none; }
+            .legend span { border: 1px solid #ccc; float: left; width: 12px; height: 12px; }
+            /* your colors */
+            .legend .zero { background-color: #ff6666; }
+            .legend .none { background-color: #000000; }
+            .legend .some { background-color: #00cc66; }
+            .legend .lots { background-color: #ff794d; }
+
+            optgroup {
+
+            }
+
+        </style>
+    </head>
+    <body>
+        <h1>So What's <i>Really</i> Going on with Firearm Violence and Mental Health?</h1>
+        <h2>Whenever the national conversation turns to the issue of firearm violence, the issue of mental health inevitably follows. The idea is, any person who would commit an act of firearm violence must be mentally ill, so addressing the epidemic of poor mental health should then mitigate firearm violence. But is firearm violence truly the consequence of poor mental health, or has mental health simply become a scapegoat to avoid finding the real, harder solutions?</h2>
+
+
+        <button onclick="show()" id="toggle">Show Visualization Info/Tutorial</button>
+        <br>
+        <div id="tutorial" style="display: none; font-size: 16px;">
+
+            <h3>Purpose</h3>
+            This visual explores the relationship between mental health rates in America versus firearm violence. This visualization is split into two components: the map and the coordinates chart. These visualizations are meant to help display similar information in two different ways to help reveal greater insights into the data.
+
+            <h3>The Data</h3>
+            Unless otherwise specified, all data used in this visualization comes from the years 2012-2014.<br><br>
+
+            There are two categories of data in this visualization: the mental health data (https://data.world/samhsa/) and the firearm violence data (https://wonder.cdc.gov/). For the firearm violence data, we are concerned only with deaths occurring from homicide or suicide. In order to get a normalized value between states, the number of deaths is converted to an estimate of the number deaths per 100,000 people from either homicide or suicide (or both).  Thus, in this visualization, firearms deaths are the total number of deaths within a given category, and the rate is the number of deaths per 100,000 people.<br><br>
+
+            For the mental health data, the rate is defined as the percentage of the population with a given mental health condition. This value is already normalized by population.<br><br>
+
+            Before being displayed, both the firearm data and the mental health data is scaled to the interval [0,1], where the state with the highest data value will have a value of 1, and the state with the lowest data value will have a value of 0. The rest of the states will exist proportionally in between. Scaling in this way allows us to start asking about the difference between this data, since all data is on the same scale.<br><br>
+
+            There is a final bit of data deals with mass shootings (https://www.massshootingtracker.org/data). This data covers only the years 2013-2014. A "mass shooting" is defined to be any shooting where at least 4 people are injured or killed. There are three categories to this data: no mass shootings, between 0 and 1 mass shootings per 1 million people, and 1 or more mass shootings per million people. This scaling is again necessary to normalize by population.<br><br>
+
+            Note that the data displayed in this visual will always be the normalized data so that comparisons between states is fair.
+
+            <h3>The Interaction</h3>
+
+            This visualization affords a number of different interactive options to help dive deeper into the data. The first is the selection of the data being used. Both the mental health data and the firearm violence data contain a number of different ways to partition the data with the options to mix and match these different partitions in any way you like.<br><br>
+
+            The next big interactive option deals with the ability to filter the data. To do this, you first choose how you want the data filtered, and then select the threshold at which this filtering should occur (See examples in the next paragraph). There are two ways you can filter the data. The first is by the difference between the firearm data and the mental health data. You can look at instances where the firearm data is larger than the mental health data by at least the threshold (or vice versa). In other words, a higher threshold will keep only states with more dramatic differences between these two variables. You can look at instances also where the absolute difference between the data is at least as large as the threshold. This helps show states where there is a large difference between the variables, without regard to which variable is larger. Finally, you can look at instances where the difference is within the threshold, showing the states with higher similarity between these variables. The second method of filtering is by a single variable. So you could, for example, look at instances where just firearm violence rates are larger than the threshold.<br><br>
+
+            The threshold can be a bit confusing, so here are some examples. If the filter type is "Difference: Firearm Greater" and the threshold is set to 0.3, then only states where "firearm violence" - "mental health" >= 0.3 will show up. Increasing this threshold will mean only states with a more drastic difference will remain. Another example, if the filter type is set to "Single: Either Less" and the threshold is 0.5, then only states where "firearm violence" is less than 0.5 or "mental health" is less than 0.5 will remain. <br><br>
+
+            I encourage you not to think too much about the actual numbers used in this filtering operation. Since scaling has been done, it can be difficult to provide clear meaning to individual values. I encourage you instead to use this as a mechanism to tease out trends in the data. Look for states with more dramatic differences between the variables (done by filtering on the difference and settings higher thresholds) and similarly look for states that tend to have more similar values in the data. Focus on trends, not numbers.<br><br>
+
+            The final interactive option deals mainly with that parallel coordinates chart. You have the option to color that chart by mass shootings. After coloring, black lines represent states with no mass shootings in the data, green lines are states with [0,1) mass shootings per million people and orange lines are states with 1 or more mass shootings per 1 million people. You can then filter on any one of these three conditions to highlight states by mass shooting. Note that you can only have one filter operation at a time.<br><br>
+
+            Finally, there are some presets to all of these parameters to help quickly glean insight from this visualization. Selecting a preset will update all the necessary parameters and also add some commentary about what you are seeing.<br><br>
+
+            Hovering over an element in either visual will provide more information about the state in question and will also highlight the corresponding element in the other visual.<br>
+
+            <h3>The Map</h3>
+
+            The first visual component is the map. The map is a simple abstract map of the United States where each square is a state. The color of the square indicates the firearm death rate, with darker colors indicating a higher firearm death rate. The size of the square is the mental health rate, with bigger squares indicating a higher mental health rate.<br>
+
+            <h3>The Parallel Coordinates Chart</h3>
+
+            The parallel coordinates chart displays the same information as above, only in a more direct way, allowing for more precise analysis. This graphic also allows for coloring by the mass shooting categories defined above. <br>
+
+            <h3>Takeaways</h3>
+
+            The big takeaway from this visual is that the relationship between mental health and firearm violence does not appear to be as strong as people may anticipate. The "presets" identify a number of case that seems to overall contradict this relationship. Focusing specifically on firearm violence, it does appear that geography seems to play a much stronger role than does mental health. This implies that firearm violence is more likely caused by things like gun access and the culture around guns rather than increase mental health rates.
+        </div>
+
+        <br>
+        <button onclick="show2()" id="toggle2">Interactive Options Legend</button>
+        <br>
+        <div id="tutorial2" style="display: none; font-size: 16px;">
+            <h4>Firearm Violence</h4>
+            Changed the firearm violence data across the visualization.
+            <ol>
+                <li>Homicide and Suicide: All deaths from homicide and suicide. The rate is number of deaths per 100,000.</li>
+                <li>Homicide: Only deaths by homicide. The rate is number of deaths per 100,000.</li>
+                <li>Suicide: Only deaths by suicide. The rate is number of deaths per 100,000.</li>
+            </ol>
+
+            <h4>Mental Health</h4>
+            Change the mental health data across the visualization.
+            <ol>
+                <li>Any Mental Illness: Rate of any mental illness in the population. Defined as any having a diagnosable mental, behavioral, or emotional disorder, other than a developmental or substance use disorder.</li>
+                <li>Thoughts of Suicide: Rate of suicidal thoughts in the population. Found by asking respondents if they had seriously considered trying to kill themselves.</li>
+                <li>Serious Mental Illness: Rate of serious mental illness in the population. Similar to "Any Mental Illness", except with functional impairment due to the illness.</li>
+                <li>Major Depressive Episode: Rate of major depressive episodes in the population. Defined as a period of at least 2 weeks when an individual experienced a depressed mood or loss of interest or pleasure in daily activities and had a majority of specified depression symptoms.</li>
+            </ol>
+
+            <h4>Filter Type</h4>
+            Changes the filtering methodology. <br><br>
+
+            Filters based on the difference.
+            <ol>
+                <li>Firearm Greater: "firearm violence" - "mental health" >= threshold. States that have relatively higher rates of firearm violence than mental illness.</li>
+                <li>Mental Health Greater: "mental health" - "firearm violence" >= threshold. States that have relatively higher rates of mental illness than firearm violence.</li>
+                <li>Either Greater: Absolute value("firearm violence" - "mental health") >= threshold. States with a high difference between mental health rates and firearm violence.</li>
+                <li>Less than: "firearm violence" - "mental health" &lt; threshold. States with higher similarity between mental health and gun violence.</li>
+            </ol>
+
+            Filters based on single variables.
+            <ol>
+                <li>Firearm Greater: "firearm violence" >= threshold. Look for states with higher rates of firearm violence.</li>
+                <li>Mental Health Greater: "mental health" >= threshold. Look for states with higher rates of mental health incidence.</li>
+                <li>Either Greater: "firearm violence" >= threshold or "mental health" >= threshold. Look for states with higher values of either variable.</li>
+                <li>Firearm Less: "firearm violence" &lt; threshold. Look for states with lower rates of firearm violence.</li>
+                <li>Mental Health Less: "mental health" &lt; threshold. Look for states with lower rates of mental health incidence.</li>
+                <li>Either Less: "firearm violence" &lt; threshold or "mental health" &lt; threshold. Look for states with lower values of either variable.</li>
+            </ol>
+
+            <h4>Filter Threshold</h4>
+            Edit the value of the filter used in the above operations.
+
+            <h4>Color parallel coordinates by mass shootings</h4>
+            Toggle to color the parallel coordinates chart according to the mass shooting categories.
+
+            <h4>Filter by Mass Shootings</h4>
+
+            Perform a filtering operation based on the mass shooting categories.
+
+
+
+
+        </div>
+        <script>
+            function show() {
+                var x = document.getElementById("tutorial");
+                if (x.style.display === "none") {
+                    x.style.display = "block";
+                } else {
+                    x.style.display = "none";
+                }
+
+                var y= document.getElementById("toggle");
+                if(y.textContent === "Show Visualization Info/Tutorial"){
+                    y.textContent = "Hide Visualization Info/Tutorial";
+                }else{
+                    y.textContent = "Show Visualization Info/Tutorial";
+                }
+            }
+
+            function show2() {
+                var x = document.getElementById("tutorial2");
+                if (x.style.display === "none") {
+                    x.style.display = "block";
+                } else {
+                    x.style.display = "none";
+                }
+
+                var y= document.getElementById("toggle2");
+                if(y.textContent === "Interactive Options Legend"){
+                    y.textContent = "Hide Interactive Options Legend";
+                }else{
+                    y.textContent = "Interactive Options Legend";
+                }
+            }
+        </script>
+        <br>
+        <hr>
+
+        <select id="colorSelect" onchange="updateAll(init = false);" style="visibility: hidden">
+            <optgroup>Diverging Color Schemes</optgroup>
+
+            <option value="interpolateRdGy">Red to Black</option>
+            <option value="interpolateRdBu" selected="selected"> Blue to Red</option>
+            <option value="interpolateBrBG"> Brown to Blue</option>
+            <option value="interpolatePRGn">Purple to Green</option>
+            <option value="interpolatePiYG">Pink to Green</option>
+            <option value="interpolatePuOr">Purple to Orange</option>
+            <optgroup>Single Hue Color Schemes</optgroup>
+            <option value="interpolateBlues">Blue</option>
+            <option value="interpolateGreens">Green</option>
+            <option value="interpolateReds">Red</option>
+        </select>
+        <div class="row">
+
+            <div class="col">
+                <h2 style="margin: 0">Interactive Options </h2>
+                <h4>See "Interactive Options Legend" for full details</h4>
+                <table>
+                    <tr>
+                        <!--<td><h3>Color Scheme</h3></td>-->
+                        <td><h3>Firearm Violence</h3></td>
+                        <td><h3>Mental Health</h3></td>
+                    </tr>
+                    <tr>
+
+                        <td>
+                            <select id="dataSelect" onchange="updateAll(init = false);">
+                                <option value="F" selected="selected">Homicide and Suicide</option>
+                                <option value="H">Homicide</option>
+                                <option value="S">Suicide</option>
+                            </select>
+                        </td>
+
+                        <td>
+                            <select id="dataSelect2" onchange="updateAll(init = false);">
+                                <option value="AMI" selected="selected">Any Mental Illness</option>
+                                <option value="TOS">Thoughts of Suicide</option>
+                                <option value="SMI">Serious Mental Illness</option>
+                                <option value="MDE">Major Depressive Episode</option>
+                            </select>
+                        </td>
+                    </tr>
+                </table>
+                <table>
+                    <tr>
+                        <td>
+                            <h3>Filter Type</h3>
+                            <select onchange="resetMSShooting(); coordPlotWrapper(false);" id="thresholdSelect">
+                                <option value="none">None</option>
+                                <optgroup label="Difference">
+                                    <option value="f_greater">Firearm Greater</option>
+                                    <option value="mh_greater">Mental Health Greater</option>
+                                    <option value="abs_greater" default>Either Greater</option>
+                                    <option value="less_than">Less than</option>
+                                </optgroup>
+                                <optgroup label="Single Variable">
+                                    <option value="s_f_greater">Firearm Greater</option>
+                                    <option value="s_mh_greater">Mental Health Greater</option>
+                                    <option value="s_abs_greater" default>Either Greater</option>
+                                    <option value="s_f_less">Firearm Less</option>
+                                    <option value="s_mh_less">Mental Health Less</option>
+                                    <option value="s_abs_less" default>Either Less</option>
+
+                                </optgroup>
+                            </select>
+                        </td>
+
+                        <td style="padding-top: 10px ">
+                            <h3>Filter Threshold</h3>
+                            <input id="slider1" type="range" min="0.0" max="1.0" step="0.01" value="0" onchange="changeValue(); coordPlotWrapper(false);" /><br>
+                            The current threshold value is <span id="threshold">0</span><br>
+
+
+                        </td>
+                    </tr>
+
+                </table>
+
+
+                <table>
+                    <tr>
+
+                        <td>
+                            <input type="checkbox" id="checkBox" onchange="checkBox();">Color parallel coordinates by mass shootings
+                        </td>
+                        <td style="padding-top: 10px">
+                            <h3>Filter by Mass Shootings</h3>
+                            <select onchange="resetFilter(); filterCoord();" id="filterMS">
+                                <option value="ignore">None</option>
+                                <option value="none">0 mass shootings</option>
+                                <option value="some">[0, 1) mass shootings per 1 million</option>
+                                <option value="lots" default> >= 1 mass shooting per 1 million</option>
+                            </select>
+                        </td>
+                    </tr>
+
+                </table>
+
+                <table>
+                    <tr>
+                        <td><h3>Interactive Presets</h3>
+                            <select onchange="presets();" id="preset">
+                                <option value="none">None</option>
+                                <option value="smi">More to mass shootings?</option>
+                                <option value="tos">The suicide contradiction</option>
+                                <option value="g_outliers">High Firearm Rates</option>
+                                <option value="mh_outliers">High Mental Health Rates</option>
+
+                            </select></td>
+                        
+                        <td><button onclick="reset();" id="reset">Reset All Parameters</button></td>
+                    </tr>
+                </table>
+
+
+            </div>
+
+            <div class="col">
+                <h2 style="margin: 0">Legend</h2>
+                <h3>Data</h3>
+                <strong>Firearm Violence:</strong> Deaths per 100,000 people, scaled to the interval [0,1]<br>
+                <strong>Mental Health:</strong> Percentage of population with given mental health condition, scaled to the interval [0,1]
+                <h3>Map</h3>
+                <strong>Color:</strong> <br> Low firearm violence rate <img src="assets/scale_flip.png" height="10" width="100"> High firearm violence rate <br><br>
+                <strong>Size:</strong><br> The larger the square, the higher the mental health rate.
+
+                <h3>Parallel Coordinates</h3>
+                <ul class="legend">
+                    <li><span class="zero"></span>&nbsp; Default, no meaning to color</li>
+                </ul>
+                <strong>If colored by mass shootings: </strong>
+
+                <ul class="legend">
+                    <li><span class="none"></span>	&nbsp;	0 mass shootings</li>
+                    <li><span class="some"></span>&nbsp; [0,1) mass shootings per 1 million people</li>
+                    <li><span class="lots"></span> &nbsp; >= 1 mass shootings per 1 million people</li>
+                </ul>
+
+            </div>
+
+            <div class="col">
+                <h2 style="margin: 0">State Information</h2>
+
+                <div id="info">
+                </div>
+            </div>
+
+
+        </div>
+
+
+
+        <hr>
+
+        <div id="notes" style="font-size: 16px"></div>
+        <div style="width: 100%;">
+            <div style="width: 800px; float: left;" id="graphHolder"></div>
+            <div style="margin-left: 800px;" id="graphHolder2"></div>
+        </div>
+
+
+
+
+
+
+    </body>
+    <script type="text/javascript">
+
+        function reset(){
+            var preset = {
+                        "gun_violence": 0,
+                        "mental_health": 0,
+                        "difference_threshold_type": 0,
+                        "difference_threshold": 0,
+                        "color_parallel": false,
+                        "filter_mass_shootings": 0,
+                        "comments": ""
+                    };
+            document.getElementById("preset").getElementsByTagName("option")[0].selected = true;
+            document.getElementById("threshold").value = 0;
+            setPreset(preset);
+        }
+        // Reset selected option
+        function resetMSShooting(){
+            document.getElementById("filterMS").getElementsByTagName('option')[0].selected = true;
+        }
+
+        function resetFilter(){
+            document.getElementById("slider1").value = 0;
+            d3.select("#threshold").text(0);
+            document.getElementById("thresholdSelect").getElementsByTagName('option')[0].selected = true;
+        }
+
+        function updateAll(init){
+            abstractMapWrapper(init);
+            coordPlotWrapper(false);
+        }
+
+        // Functions for presets
+        function presets(){
+            var e = document.getElementById("preset").value;
+
+            // Choose preset
+            switch(e){
+                case "none":
+                    var preset = {
+                        "gun_violence": 0,
+                        "mental_health": 0,
+                        "difference_threshold_type": 0,
+                        "difference_threshold": 0,
+                        "color_parallel": false,
+                        "filter_mass_shootings": 0,
+                        "comments": ""
+                    };
+                    break;
+                case "smi":
+                    var preset = {
+                        "gun_violence": 0,
+                        "mental_health": 2,
+                        "difference_threshold_type": 0,
+                        "difference_threshold": 0,
+                        "color_parallel": true,
+                        "filter_mass_shootings": 3,
+                        "comments": "<br>This preset shows that the states that had the highest rates of mass shootings had no clear pattern amongst " + 
+                        "the rates of serious mental illness. Illinois, which had one of the lowest rates of serious mental illness, was among the 6 " +
+                        "states with the most mass shootings."
+                    };
+                    break;
+                case "tos":
+                    var preset = {
+                        "gun_violence": 2,
+                        "mental_health": 1,
+                        "difference_threshold_type": 3,
+                        "difference_threshold": 0.25,
+                        "color_parallel": false,
+                        "filter_mass_shootings": 0,
+                        "comments": "<br>Here we see two variables that should almost certainly be correlated (deaths by suicide and thoughts of suicide), and yet half the states show " + 
+                        "a relatively large difference between them. In fact, Utah, which has the highest instance of thoughts of suicide, has one of " + 
+                        "the lowest instances of firearm death by suicide. Further, the three states with the highest rates of death by suicide, " +
+                        "Louisiana, Alabama, and Mississippi, are middle of the pack when it comes to thoughts of suicide."
+                    };
+                    break;
+                case "g_outliers":
+                    var preset = {
+                        "gun_violence": 0,
+                        "mental_health": 0,
+                        "difference_threshold_type": 5,
+                        "difference_threshold": 0.88,
+                        "color_parallel": false,
+                        "filter_mass_shootings": 0,
+                        "comments": "<br>When considering the states with the highest incidence of firearm violence, a few things become apparent. " + 
+                        "The first is that all these states fall roughly in the middle of the pack when it comes to mental health rates. The second is that " + 
+                        "there appears to be a geographic cluster going on, hinting at what the underlying cause of firearm violence rates could be."
+                    };
+                    break;
+                case "mh_outliers":
+                    var preset = {
+                        "gun_violence": 0,
+                        "mental_health": 0,
+                        "difference_threshold_type": 6,
+                        "difference_threshold": 0.75,
+                        "color_parallel": false,
+                        "filter_mass_shootings": 0,
+                        "comments": "<br>Looking at the states with the highest incidence of mental health issues reveals some interesting insights. " +
+                        "The first is that these states are all over the place when it comes to firearm violence. The second is that the geographic component " +
+                        " seen with the top firearm states does not seem to be present anymore."
+                    };
+                    break;
+            }
+            setPreset(preset);
+
+        }
+
+        function setPreset(preset){
+
+            // Extract the elements
+            var gun = document.getElementById("dataSelect");
+            var mental = document.getElementById("dataSelect2");
+            var difference_filter = document.getElementById("thresholdSelect");
+            var difference = document.getElementById("slider1");
+            var color = document.getElementById("checkBox");
+            var mass = document.getElementById("filterMS");
+            
+            // Set the values according to the preset
+            gun.getElementsByTagName('option')[preset["gun_violence"]].selected = true;
+            mental.getElementsByTagName('option')[preset["mental_health"]].selected = true;
+            difference_filter.getElementsByTagName('option')[preset['difference_threshold_type']].selected = true;
+            difference.value = preset["difference_threshold"];
+            changeValue();
+            color.checked = preset["color_parallel"];
+            mass.getElementsByTagName('option')[preset['filter_mass_shootings']].selected = true;
+
+            d3.select("#notes").html(preset["comments"]);
+            
+            updateAll(false);
+
+            if(preset['filter_mass_shootings'] != 0){
+                var millisecondsToWait = 1000;
+                setTimeout(function() {
+                    resetFilter();
+                    filterCoord();
+                }, millisecondsToWait);
+
+            }
+
+
+        }
+
+        // Helper functions
+        function checkBox(){
+            var e = document.getElementById("checkBox");
+            var colorShooting = e.checked;
+            resetMSShooting();
+            resetFilter();
+
+            if(colorShooting){
+                coordPlotWrapper(false);
+            }else{
+                document.getElementById("filterMS").getElementsByTagName('option')[0].selected = true;
+                coordPlotWrapper(false);
+            }
+        }
+
+        function getColor(num){
+            var e = document.getElementById("colorSelect");
+            choice = e.options[e.selectedIndex].value;
+
+            var reverse = true;
+            if(choice.includes("Red") || choice.includes("Blue") || choice.includes("Green")){
+                reverse = false;
+            }
+            if(reverse){
+                var col = "d3." + choice + "(" + (1 - num) + ")";
+                return eval(col);
+            }else{
+                var col = "d3." + choice + "(" + num + ")";
+                return eval(col);
+            }
+
+
+        }
+
+        function massShootingColor(val, color=false){
+            var none = "#000000";
+            var some = "#00cc66";
+            var lots = "#ff794d";
+            if(color){
+                if(val == 0){
+                    return none;
+                }else if(val < 1){
+                    return some;
+                }else{
+                    return lots;
+                }
+            }
+            else{
+                return "#ff6666";
+            }
+
+        }
+
+        function changeValue() {
+            //resetMSShooting();
+            var x = document.getElementById("slider1");
+            d3.select("#threshold").text(x.value);
+        }
+
+        function round(value, decimals) {
+            return Number(Math.round(value+'e'+decimals)+'e-'+decimals);
+        }
+
+        // https://stackoverflow.com/questions/8175093/simple-function-to-sort-an-array-of-objects
+        function sortByKey(array, key) {
+            return array.sort(function(a, b) {
+                var x = a[key]; var y = b[key];
+                return ((x < y) ? -1 : ((x > y) ? 1 : 0));
+            });
+        }
+
+        // Coord helper
+        function position(d) {
+            var v = dragging[d.name];
+            return v == null ? x(d.name) : v;
+        }
+
+        //function transition(g) {
+        //    return g.transition().duration(500);
+        //}
+
+        // Returns the path for a given data point.
+        function path(d) {
+            //return line(dimensions.map(function(p) { return [position(p), y[p](d[p])]; }));
+            return line(dimensions.map(function(dimension) {
+                var v = dragging[dimension.name];
+                var tx = v == null ? x(dimension.name) : v;
+                return [tx, dimension.scale(d[dimension.name])];
+            }));
+        }
+
+        function coordPlotWrapper(init = true){
+            readCoordData(init);
+        }
+
+        function readCoordData(init = false){
+            var e1 = document.getElementById("dataSelect");
+            var e2 = document.getElementById("dataSelect2");
+            var data_choice = e1.options[e1.selectedIndex].value;
+            var data_choice2 = e2.options[e2.selectedIndex].value;
+
+            // Set up for line coloring
+            var colors = d3.scale.ordinal().domain([false, true])
+            .range([getColor(0.2), getColor(0.8)]);
+            var xVal = document.getElementById("slider1").value;
+            var color = function(d) {
+                return colors(Math.abs(d["Firearm Violence"] - d["Mental Health"]) > xVal); 
+            };
+
+            var firearm = data_choice + "_Norm";
+            var mentalHealth = data_choice2 + "_Norm";
+
+            d3.csv("data/all.csv", function(d) {
+                return {State : d.Ab,
+                        "Firearm Violence": +d[firearm],
+                        "Mental Health" : +d[mentalHealth],
+                        "MS": +d["MS_Rate"]
+                       };
+            }, function(error, data) {
+                data = sortByKey(data, "Firearm Violence").reverse();
+
+                //Create the dimensions depending on attribute "type" (number|string)
+                //The x-scale calculates the position by attribute dimensions[x].name
+                dimensions.forEach(function(dimension) {
+                    dimension.scale.domain(dimension.type === "number"
+                                           ? d3.extent(data, function(d) { return +d[dimension.name]; })
+                                           : data.map(function(d) { return d[dimension.name]; }));
+                }); 
+
+                coordData = data;
+                drawCoord(init, xVal);
+            });
+        }
+
+        // Draw the coordinate map
+        function drawCoord(init = false, xVal = 0.25){   
+
+            var e = document.getElementById("checkBox");
+            var colorShooting = e.checked;
+
+            if(init){
+                foreground = coord.append("g")
+                    .attr("class", "foreground")
+                    .selectAll("path")
+                    .data(coordData)
+                    .enter().append("path")
+                    .attr("d", path)
+                    .style("opacity", opacHigh)
+                    .attr("stroke", function(d){
+                    return massShootingColor(d["MS"], colorShooting);
+                })
+                //  .attr("stroke", function(d){
+                //return Math.abs(d["Firearm Violence"] - d["Mental Health"]) > xVal ? getColor(0.2) : getColor(0.7);
+                //})
+                    .attr("stroke-width", 2)
+                    .on("mouseover", function(d) {   
+                    var cur = mapData.filter(x => x.Ab == d.State)[0];
+                    div.style("opacity", 1);      
+                    var html = "<h3>" + cur.State + "</h3>" +
+                        "Firearm Deaths: " + cur.F_Deaths + "<br>" + 
+                        "Firearm Deaths (per 100,000): " + cur.F_Rate + "<br>" + 
+                        "Mental Health Rate: " + cur.MH_Rate + "<br>" +
+                        "Mass Shootings: " + cur.MS + "<br>" + 
+                        "Mass Shootings (per 1,000,000): " + round(cur.MS_Rate, 2);
+                    div.html(html);
+                    this.style.strokeWidth = 7;
+                    //this.style.opacity = opacHigh;
+                    hoverMap(d.State);
+                })   
+
+                // fade out tooltip on mouse out               
+                    .on("mouseout", function(d) {       
+                    div.style("opacity", 0);
+                    this.style.strokeWidth = 2;
+                    //this.style.opacity = opacMid;
+                    hoverMap(null);
+                });
+
+            }
+            else{
+                var e = document.getElementById("thresholdSelect");
+                var choice = e.options[e.selectedIndex].value;
+
+                // Filter states by threshold choice
+                switch(choice){
+                    case "f_greater":
+                        states = coordData.filter(d => +(d["Firearm Violence"] - d["Mental Health"]) >= xVal);
+                        break;
+                    case "mh_greater":
+                        states = coordData.filter(d => +(d["Mental Health"] - d["Firearm Violence"]) >= xVal);
+                        break;
+                    case "abs_greater":
+                        states = coordData.filter(d => +Math.abs(d["Mental Health"] - d["Firearm Violence"]) >= xVal);
+                        break;
+                    case "less_than":
+                        states = coordData.filter(d => +Math.abs(d["Mental Health"] - d["Firearm Violence"]) < xVal);
+                        break;
+                    case "s_f_greater":
+                        states = coordData.filter(d => +(d["Firearm Violence"]) >= xVal);
+                        break;
+                    case "s_mh_greater":
+                        states = coordData.filter(d => +(d["Mental Health"]) >= xVal);
+                        break;
+                    case "s_abs_greater":
+                        states = coordData.filter(d => +(d["Mental Health"]) >= xVal || +(d["Firearm Violence"]) >= xVal);
+                        break;
+                    case "s_f_less":
+                        states = coordData.filter(d => +(d["Firearm Violence"]) < xVal);
+                        break;
+                    case "s_mh_less":
+                        states = coordData.filter(d => +(d["Mental Health"]) < xVal);
+                        break;
+                    case "s_abs_less":
+                        states = coordData.filter(d => +(d["Mental Health"]) < xVal || +(d["Firearm Violence"]) < xVal);
+                        break; 
+                    default:
+                        states = coordData;
+                        break;
+                }
+                states = states.map(x => x.State);
+
+                foreground = coord
+                    .selectAll("path")
+                    .data(coordData)
+                    .transition()
+                    .attr("d", path)
+                    .attr("stroke", function(d){
+                    return massShootingColor(d["MS"], colorShooting);
+                }).style("opacity", function(d){
+                    switch(choice){
+                        case "f_greater":
+                            return d["Firearm Violence"] - d["Mental Health"] >= xVal ? opacHigh : opacLow;
+                        case "mh_greater":
+                            return d["Mental Health"] - d["Firearm Violence"] >= xVal ? opacHigh : opacLow;
+                        case "abs_greater":
+                            return Math.abs(d["Firearm Violence"] - d["Mental Health"]) >= xVal ? opacHigh : opacLow;
+                        case "less_than":
+                            return Math.abs(d["Firearm Violence"] - d["Mental Health"]) < xVal ? opacHigh : opacLow;
+                        case "s_f_greater":
+                            return +(d["Firearm Violence"]) >= xVal ? opacHigh : opacLow;
+                        case "s_mh_greater":
+                            return +(d["Mental Health"]) >= xVal ? opacHigh : opacLow;
+                        case "s_abs_greater":
+                            return +(d["Mental Health"]) >= xVal || +(d["Firearm Violence"]) >= xVal ? opacHigh : opacLow;
+                        case "s_f_less":
+                            return +(d["Firearm Violence"]) < xVal ? opacHigh : opacLow;
+                        case "s_mh_less":
+                            return +(d["Mental Health"]) < xVal ? opacHigh : opacLow;
+                        case "s_abs_less":
+                            return +(d["Mental Health"]) < xVal || +(d["Firearm Violence"]) < xVal ? opacHigh : opacLow;
+                        default:
+                            return opacHigh;
+                    }      
+                })
+                //    .attr("stroke", function(d){
+                //    return Math.abs(d["Firearm Violence"] - d["Mental Health"]) > xVal ? getColor(0.2) : getColor(0.7);
+                //})
+                    .duration(1000);
+
+                abstractMapWrapper(false, states);
+            }
+
+            if(init){
+                // Add a group element for each dimension.
+                var g = coord.selectAll(".dimension")
+                .data(dimensions)
+                .enter()
+                .append("g")
+                .attr("class", "dimension")
+                .attr("transform", function(d) { return "translate(" + x(d.name) + ")"; });
+
+                // Add an axis and title.
+                g.append("g")
+                    .attr("class", "axis")
+                    .each(function(d) { d3.select(this).call(axis.scale(d.scale)); })
+                    .append("text")
+                    .style("text-anchor", "middle")
+                    .attr("class", "axis-label")
+                    .attr("y", -19)
+                    .style("font-size", "16px")
+                    .style("font", "\"Palatino Linotype\", \"Book Antiqua\", Palatino, serif")
+                    .text(function(d) { return d.name; });
+            }
+            else{
+                coord.selectAll(".dimension")
+                    .data(dimensions)
+                    .selectAll(".axis")
+                    .each(function(d) { d3.select(this).call(axis.scale(d.scale)); });
+            }
+
+        }
+
+        // Similar to drawCoord but filters on mass shootings
+        function filterCoord(){
+            var e = document.getElementById("filterMS");
+            var choice = e.options[e.selectedIndex].value;
+
+            e = document.getElementById("checkBox");
+            var colorShooting = e.checked;
+
+            // Filter states by threshold choice
+            switch(choice){
+                case "none":
+                    states = coordData.filter(d => +d.MS == 0);
+                    break;
+                case "some":
+                    states = coordData.filter(d => +d.MS < 1 && +d.MS > 0);
+                    break;
+                case "lots":
+                    states = coordData.filter(d => +d.MS >= 1);
+                    break;
+                default:
+                    states = coordData;
+                    break;
+            }
+
+            states = states.map(x => x.State);
+            var opacLow = 0.15;
+            foreground = coord
+                .selectAll("path")
+                .data(coordData)
+                .transition()
+                .attr("d", path)
+                .attr("stroke", function(d){
+                return massShootingColor(d["MS"], colorShooting);
+            }).style("opacity", function(d){
+                switch(choice){
+                    case "none":
+                        return d.MS == 0 ? opacHigh : opacLow;
+                    case "some":
+                        return d.MS > 0 && d.MS < 1 ? opacHigh : opacLow;
+                    case "lots":
+                        return d.MS >= 1 ? opacHigh : opacLow;
+                    default:
+                        return opacHigh;
+                }      
+            })
+            //    .attr("stroke", function(d){
+            //    return Math.abs(d["Firearm Violence"] - d["Mental Health"]) > xVal ? getColor(0.2) : getColor(0.7);
+            //})
+                .duration(1000);
+
+            abstractMapWrapper(false, states);
+        }
+
+
+        function abstractMapWrapper(init = true, show_states = null){
+            readAbstractData(init, show_states);
+        }
+
+        function readAbstractData(init = true, show_states=null){
+            var e1 = document.getElementById("dataSelect");
+            var e2 = document.getElementById("dataSelect2");
+            var data_choice = e1.options[e1.selectedIndex].value;
+            var data_choice2 = e2.options[e2.selectedIndex].value;
+
+            d3.csv("data/all.csv", function(data) {
+                // Load GeoJSON data and merge with states data
+                var states = [];
+                d3.json("data/coord.json", function(json) {
+                    // Loop through each state data value in the .csv file
+
+                    for (var i = 0; i < data.length; i++) {
+                        // Grab State Name
+                        var dataState = data[i].Ab;
+                        // json[dataState].Norm = data[i];
+                        json[dataState].h1 = 3/10 *json[dataState].h + 7/10 * json[dataState].h * data[i][data_choice2 + "_Norm"];
+                        json[dataState].w1 = 3/10 * json[dataState].w + 7/10 * json[dataState].w * data[i][data_choice2 + "_Norm"];
+                        json[dataState].x1 = json[dataState].x + (json[dataState].w - json[dataState].w1)/2;
+                        json[dataState].y1 = json[dataState].y + (json[dataState].h - json[dataState].h1)/2;
+                        var show = true;
+                        if(show_states != null && !show_states.includes(data[i].Ab)){
+                            show = false;
+                        }
+
+                        states = states.concat({
+                            "h": json[dataState].h1,
+                            "w": json[dataState].w1,
+                            "x": json[dataState].x1,
+                            "y": json[dataState].y1, 
+                            "MH_Norm": data[i][data_choice2 + "_Norm"],
+                            "F_Norm": data[i][data_choice + "_Norm"],
+                            "MH_Rate": round(+data[i][data_choice2 + "_Rate"] * 100, 2) + "%",
+                            "F_Rate": data[i][data_choice + "_Rate"],
+                            "F_Deaths": data[i][data_choice + "_Deaths"],
+                            "State": data[i].State,
+                            "Ab": data[i].Ab,
+                            "Show": show,
+                            "MS_Rate": data[i].MS_Rate,
+                            "MS": data[i].MS
+                        });
+                    }
+                    mapData = states;
+                    drawAbstractMap(init);
+                });
+            });
+        }
+
+        // Draw the abstact map
+        function drawAbstractMap(init = true){
+
+            var abs_map = d3.select("#absMap");
+            if(init){
+                var map = abs_map.selectAll('rect')
+                .data(mapData) // Bind the user's data
+                .enter()
+                .append('rect')
+                .attr('width', function(d) {
+                    return d.w; // Set width dynamically
+                })
+                .attr('height', function(d) {
+                    return d.h; // Set height dynamically
+                })
+                .attr('x', function(d) {
+                    return d.x; // Set x dynamically
+                })
+                .attr('y', function(d) {
+                    return d.y; // Set y dynamically
+                })
+                .attr("fill", function(d) {
+                    return getColor(d.F_Norm)
+                })
+                .attr("stroke", "#000000")
+                .attr("stroke-width", 2)
+                .on("mouseover", function(d) {      
+                    div.style("opacity", 1);      
+                    div.html("<h3>" + d.State + "</h3>" +
+                             "Firearm Deaths: " + d.F_Deaths + "<br>" + 
+                             "Firearm Deaths (per 100,000): " + d.F_Rate + "<br>" + 
+                             "Mental Health Rate: " + d.MH_Rate + "<br>" + 
+                             "Mass Shootings: " + d.MS + "<br>" + 
+                             "Mass Shootings (per 1,000,000): " + round(d.MS_Rate, 2)
+                            );
+                    this.style.strokeWidth = 5;
+                    // .style("left", (d3.event.pageX) + "px")     
+                    //.style("top", (d3.event.pageY - 28) + "px")
+                    hoverCoord(d.Ab);
+                })   
+
+                // fade out tooltip on mouse out               
+                .on("mouseout", function(d) {       
+                    div.style("opacity", 0);
+                    this.style.strokeWidth = 2;
+                    hoverCoord(null);
+                }); // Create the rect
+            }
+            else{
+                var map = abs_map.selectAll('rect')
+                .data(mapData)
+                .transition()
+                .attr('width', function(d) {
+                    return d.w; // Set width dynamically
+                })
+                .attr('height', function(d) {
+                    return d.h; // Set height dynamically
+                })
+                .attr('x', function(d) {
+                    return d.x; // Set x dynamically
+                })
+                .attr('y', function(d) {
+                    return d.y; // Set y dynamically
+                })
+                .attr("fill", function(d) {
+                    return getColor(d.F_Norm)
+                })
+                .style("opacity", function(d){
+                    return d.Show ? 1 : 0.1;
+                })
+                .duration(1000);
+            }
+        }
+
+        // Helper function to highlight map from coord
+        function hoverMap(state = null){
+            if(state)  {
+                d3.select("#absMap").selectAll('rect')
+                    .data(mapData)
+                    .style("stroke-width", function(d){
+                    return d.Ab == state ? 5 : 1.5;
+                });
+            }else{
+                d3.select("#absMap").selectAll('rect')
+                    .data(mapData)
+                    .style("stroke-width", function(d){
+                    return 1.5;
+                });
+            }
+
+        }
+
+        // Helper function to highlight coord from map
+        function hoverCoord(state = null){
+
+            if(state)  {
+                d3.select("#coordMap").selectAll('path')
+                    .data(coordData)
+                    .style("stroke-width", function(d){
+                    return d.State == state ? 7 : 2;
+                });
+            }else{
+                d3.select("#coordMap").selectAll('path')
+                    .data(coordData)
+                    .style("stroke-width", function(d){
+                    return 2;
+                });
+            }
+        }
+
+        // GLobal opacity wrapper
+        var opacLow = 0.15;
+        var opacMid = 0.7;
+        var opacHigh = 0.9;
+
+
+        var widthMap = 680 * 1;
+        var heightMap = 250 * 1;
+        var marginMap = {top: 100, right: 50, bottom: 50, left: 50};
+
+        var abstract_map = d3.select("#graphHolder")
+        .append('svg')
+        .attr("id", "absMap")
+        .attr("width", widthMap + marginMap.left + marginMap.right)
+        .attr("height", heightMap + marginMap.top + marginMap.bottom)
+        .attr('viewBox', '0 0 858.8 570')
+        .style("margin-bottom", "12px");
+
+
+        // Append Div for tooltip to SVG
+        var div = d3.select("#info");
+
+
+        var width = 480 * 1;
+        var height = 250 * 1.25;
+        var margin = {top: 50, right: 50, bottom: 50, left: 100};
+
+        var dimensions = [
+            /*
+            {
+                name: "State",
+                scale: d3.scale.ordinal().rangePoints([0, height]),
+                type: "string"
+            },*/
+            {
+                name: "Firearm Violence",
+                scale: d3.scale.linear().range([height, 0]),
+                type: "number"
+            },
+            {
+                name: "Mental Health",
+                scale: d3.scale.linear().range([height, 0]),
+                type: "number"
+            }
+        ];
+
+
+        var x = d3.scale.ordinal().domain(dimensions.map(function(d) { return d.name; })).rangePoints([0, width]),
+            y = {},
+            dragging = {};
+
+        var line = d3.svg.line(),
+            axis = d3.svg.axis().orient("left"),
+            background,
+            foreground;
+
+
+        var coord = d3.select("#graphHolder2").append("svg")
+        .attr("id", "coordMap")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+
+
+        // Global Data Declarations
+        var mapData;
+        var coordData;
+
+        var y = d3.scale.linear().range([height, 0]);
+
+        abstractMapWrapper();
+        coordPlotWrapper(true);
+
+        /*
+        // Append map helper information
+       d3.select("#graphHolder")
+            .append("span")
+            .style("margin-top", "10px")
+            .html( "<strong>Color:</strong> <br> Low gun violence rate <img src=\"assets/scale_flip.png\" height=\"10\" width=\"100\"> High gun violence rate <br><br>" +
+                  "<strong>Size:</strong><br> The larger the square, the higher the mental health rate. <br><br>  See tutorial for more info.")
+
+
+        d3.select("#graphHolder2")
+            .append("span")
+            .style("margin-top", "10px")
+            //.style("margin-left", "100px")
+            .style("width", "100%")
+            .html( "<br><strong>If colored: </strong> blue: 0 mass shootings <br> orange: [0,1) mass shootings per 1 million <br> black: >= 1 mass shootings per 1 million")
+        */
+    </script>
+
+</html>
